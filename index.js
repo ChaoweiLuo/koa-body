@@ -17,6 +17,7 @@
 const buddy = require('co-body');
 const forms = require('formidable');
 const symbolUnparsed = require('./unparsed.js');
+const { existsSync, mkdirSync } = require('fs');
 
 /**
  * Expose `requestbody()`.
@@ -54,6 +55,9 @@ function requestbody(opts) {
   opts.formidable = 'formidable' in opts ? opts.formidable : {};
   opts.includeUnparsed = 'includeUnparsed' in opts ? opts.includeUnparsed : false
   opts.textLimit = 'textLimit' in opts ? opts.textLimit : '56kb';
+
+  if (opts.formidable && opts.formidable.uploadDir && !existsSync(opts.formidable.uploadDir))
+    mkdirSync(opts.formidable.uploadDir);
 
   // @todo: next major version, opts.strict support should be removed
   if (opts.strict && opts.parsedMethods) {
@@ -110,7 +114,7 @@ function requestbody(opts) {
     }
 
     bodyPromise = bodyPromise || Promise.resolve({});
-    return bodyPromise.catch(function(parsingError) {
+    return bodyPromise.catch(function (parsingError) {
       if (typeof opts.onError === 'function') {
         opts.onError(parsingError, ctx);
       } else {
@@ -118,35 +122,35 @@ function requestbody(opts) {
       }
       return next();
     })
-    .then(function(body) {
-      if (opts.patchNode) {
-        if (isMultiPart(ctx, opts)) {
-          ctx.req.body = body.fields;
-          ctx.req.files = body.files;
-        } else if (opts.includeUnparsed) {
-          ctx.req.body = body.parsed || {};
-          if (! ctx.is('text/*')) {
-            ctx.req.body[symbolUnparsed] = body.raw;
+      .then(function (body) {
+        if (opts.patchNode) {
+          if (isMultiPart(ctx, opts)) {
+            ctx.req.body = body.fields;
+            ctx.req.files = body.files;
+          } else if (opts.includeUnparsed) {
+            ctx.req.body = body.parsed || {};
+            if (!ctx.is('text/*')) {
+              ctx.req.body[symbolUnparsed] = body.raw;
+            }
+          } else {
+            ctx.req.body = body;
           }
-        } else {
-          ctx.req.body = body;
         }
-      }
-      if (opts.patchKoa) {
-        if (isMultiPart(ctx, opts)) {
-          ctx.request.body = body.fields;
-          ctx.request.files = body.files;
-        } else if (opts.includeUnparsed) {
-          ctx.request.body = body.parsed || {};
-          if (! ctx.is('text/*')) {
-            ctx.request.body[symbolUnparsed] = body.raw;
+        if (opts.patchKoa) {
+          if (isMultiPart(ctx, opts)) {
+            ctx.request.body = body.fields;
+            ctx.request.files = body.files;
+          } else if (opts.includeUnparsed) {
+            ctx.request.body = body.parsed || {};
+            if (!ctx.is('text/*')) {
+              ctx.request.body[symbolUnparsed] = body.raw;
+            }
+          } else {
+            ctx.request.body = body;
           }
-        } else {
-          ctx.request.body = body;
         }
-      }
-      return next();
-    })
+        return next();
+      })
   };
 }
 
